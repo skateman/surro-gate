@@ -93,8 +93,9 @@ module SurroGate
 
     def thread_stop
       return if @thread.nil?
-      @thread.kill
+      thread = @thread
       @thread = nil
+      thread.kill
     end
 
     def reactor
