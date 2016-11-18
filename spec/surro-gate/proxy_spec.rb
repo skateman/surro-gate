@@ -7,6 +7,7 @@ describe SurroGate::Proxy do
   let(:str) { 'test' }
 
   let(:selector) { subject.instance_variable_get(:@selector) }
+  let(:thread) { subject.instance_variable_get(:@thread) }
 
   describe '#push' do
     it 'calls the proxy method with the two arguments' do
@@ -32,7 +33,7 @@ describe SurroGate::Proxy do
       before { subject.send(:thread_start) }
 
       it 'joins the internal thread' do
-        expect(subject.instance_variable_get(:@thread)).to receive(:join)
+        expect(thread).to receive(:join)
         subject.wait
       end
     end
@@ -70,6 +71,35 @@ describe SurroGate::Proxy do
     it 'starts the internal thread' do
       expect(subject).to receive(:thread_start)
       subject.send(:proxy, left.first, right.last)
+    end
+
+    describe 'disconnect' do
+      before do
+        subject.send(:proxy, left.first, right.last)
+        left.first.close
+      end
+
+      it 'disconnects the other end' do
+        subject.wait
+        expect(right.last.closed?).to be_truthy
+      end
+
+      context 'with no remaining sockets' do
+        it 'kills the internal thread' do
+          subject.wait
+          expect(thread).to be_nil
+        end
+      end
+
+      context 'with remaining sockets' do
+        before { subject.send(:proxy, IO.pipe.first, IO.pipe.last) }
+
+        it 'keeps the internal thread running' do
+          expect(subject).not_to receive(:thread_stop)
+          sleep(0.1) # Give some time to the background thread
+          expect(thread.alive?).to be_truthy
+        end
+      end
     end
 
     describe 'monitor.value.call' do

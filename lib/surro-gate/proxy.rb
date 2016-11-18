@@ -55,6 +55,9 @@ module SurroGate
         dst = monitors.reject { |m| m == src }.first
         # Set up a proc for future transmissions
         src.value = proc do
+          # Clean up the connection if one of the endpoints gets closed
+          cleanup(src.io, dst.io) if src.io.closed? || dst.io.closed?
+          # Do the transmission and return with the bytes transferred
           transmit(src.io, dst.io) if src.readable? && dst.writable?
         end
       end
@@ -90,8 +93,9 @@ module SurroGate
 
     def thread_stop
       return if @thread.nil?
-      @thread.kill
+      thread = @thread
       @thread = nil
+      thread.kill
     end
 
     def reactor
