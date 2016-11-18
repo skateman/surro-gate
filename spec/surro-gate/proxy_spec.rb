@@ -72,6 +72,15 @@ describe SurroGate::Proxy do
       subject.send(:proxy, left.first, right.last)
     end
 
+    describe 'disconnect' do
+      it 'disconnects the other end' do
+        subject.send(:proxy, left.first, right.last)
+        left.first.close
+        sleep(0.1)
+        expect(right.last.closed?).to be_truthy
+      end
+    end
+
     describe 'monitor.value.call' do
       let(:monitors) { selector.select }
       let(:reader) { monitors.select(&:readable?).first }
