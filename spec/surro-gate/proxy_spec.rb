@@ -5,18 +5,26 @@ describe SurroGate::Proxy do
   let(:left) { IO.pipe }
   let(:right) { IO.pipe }
   let(:str) { 'test' }
+  let(:block) { :foo.to_proc }
 
   let(:selector) { subject.instance_variable_get(:@selector) }
   let(:thread) { subject.instance_variable_get(:@thread) }
 
   describe '#push' do
     it 'calls the proxy method with the two arguments' do
-      expect(subject).to receive(:proxy).with(left.first, right.last)
+      expect(subject).to receive(:proxy).with(left.first, right.last, nil)
       subject.push(left.first, right.last)
     end
 
     it 'returns with its arguments' do
       expect(subject.push(left.first, right.last)).to eq([left.first, right.last])
+    end
+
+    context 'block given' do
+      it 'passes it further to #proxy' do
+        expect(subject).to receive(:proxy).with(left.first, right.last, block)
+        subject.push(left.first, right.last, &block)
+      end
     end
 
     context 'socket already pushed to the proxy' do
@@ -116,7 +124,7 @@ describe SurroGate::Proxy do
         before { left.last.write(str) }
 
         it 'invokes transmit' do
-          expect(subject).to receive(:transmit).with(reader.io, writer.io)
+          expect(subject).to receive(:transmit).with(reader.io, writer.io, nil)
           reader.value.call
         end
 
@@ -143,14 +151,22 @@ describe SurroGate::Proxy do
   describe '#transmit' do
     it 'transmits from left to right' do
       left.last.write(str)
-      len = subject.send(:transmit, left.first, right.last)
+      len = subject.send(:transmit, left.first, right.last, nil)
       expect(right.first.read(len)).to eq(str)
     end
 
     it 'cleans up both sockets' do
       left.last.close
       expect(subject).to receive(:cleanup).with(left.first, right.last)
-      subject.send(:transmit, left.first, right.last)
+      subject.send(:transmit, left.first, right.last, nil)
+    end
+
+    context 'block given' do
+      it 'passes the block to #cleanup' do
+        left.last.close
+        expect(subject).to receive(:cleanup).with(left.first, right.last)
+        subject.send(:transmit, left.first, right.last, block)
+      end
     end
   end
 
@@ -163,6 +179,12 @@ describe SurroGate::Proxy do
       subject.send(:cleanup, socket)
       expect(selector.registered?(socket)).to be_falsey
       expect(socket.closed?).to be_truthy
+    end
+
+    context 'block given' do
+      it 'yields to the block' do
+        expect { |b| subject.send(:cleanup, socket, &b) }.to yield_control
+      end
     end
 
     context 'sockets remaining after cleanup' do
