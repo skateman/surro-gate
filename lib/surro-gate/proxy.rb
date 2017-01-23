@@ -22,12 +22,13 @@ module SurroGate
     # @raise [ProxyError] when at least one of the pushed sockets is already registered
     # @param left [TCPSocket]
     # @param right [TCPSocket]
+    # @yield The block responsible for additional cleanup
     # @return the registered socket pair as an array
-    def push(left, right)
+    def push(left, right, &block)
       raise ProxyError, 'Socket already handled by the proxy' if includes?(left, right)
 
       @mutex.synchronize do
-        proxy(left, right)
+        proxy(left, right, block)
       end
 
       [left, right]
@@ -45,7 +46,7 @@ module SurroGate
 
     private
 
-    def proxy(left, right)
+    def proxy(left, right, block = nil)
       # Pass boths sockets to the Nio4r selector
       monitors = [left, right].map { |socket| @selector.register(socket, :rw) }
 
@@ -56,9 +57,9 @@ module SurroGate
         # Set up a proc for future transmissions
         src.value = proc do
           # Clean up the connection if one of the endpoints gets closed
-          cleanup(src.io, dst.io) if src.io.closed? || dst.io.closed?
+          cleanup(src.io, dst.io, &block) if src.io.closed? || dst.io.closed?
           # Do the transmission and return with the bytes transferred
-          transmit(src.io, dst.io) if src.readable? && dst.writable?
+          transmit(src.io, dst.io, block) if src.readable? && dst.writable?
         end
       end
 
@@ -66,10 +67,10 @@ module SurroGate
       thread_start unless @selector.empty?
     end
 
-    def transmit(src, dst)
+    def transmit(src, dst, block)
       dst.write_nonblock(src.read_nonblock(4096))
     rescue # Clean up both sockets if something bad happens
-      cleanup(src, dst)
+      cleanup(src, dst, &block)
     end
 
     def cleanup(*sockets)
@@ -78,6 +79,8 @@ module SurroGate
         @selector.deregister(socket) if @selector.registered?(socket)
         socket.close unless socket.closed?
       end
+
+      yield if block_given?
 
       # Make sure that the internal thread is stopped if no sockets remain
       thread_stop if @selector.empty?
