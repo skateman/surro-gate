@@ -7,8 +7,8 @@ module SurroGate
   class << self
     # Initializes a new Proxy instance
     # @return [Proxy]
-    def new
-      Proxy.new
+    def new(logger = nil)
+      Proxy.new(logger)
     end
   end
 end
