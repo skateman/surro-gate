@@ -9,6 +9,9 @@ describe SurroGate::Proxy do
 
   let(:selector) { subject.instance_variable_get(:@selector) }
   let(:thread) { subject.instance_variable_get(:@thread) }
+  let(:logger) { Logger.new('/dev/null') }
+
+  subject { described_class.new(logger) }
 
   describe '#push' do
     it 'calls the proxy method with the two arguments' do

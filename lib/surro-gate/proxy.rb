@@ -1,4 +1,5 @@
 require 'nio'
+require 'logger'
 
 module SurroGate
   # This class is responsible for connecting TCP socket pairs and proxying between them.
@@ -10,9 +11,11 @@ module SurroGate
   #
   # The proxy was designed to be highly reusable and it can handle multiple socket pairs.
   class Proxy
-    def initialize
+    def initialize(logger)
       @mutex = Mutex.new
       @selector = NIO::Selector.new
+      @log = logger || Logger.new(STDOUT)
+      @log.level = Logger::WARN
     end
 
     # Registers a pair of socket for proxying.
@@ -26,6 +29,8 @@ module SurroGate
     # @return the registered socket pair as an array
     def push(left, right, &block)
       raise ProxyError, 'Socket already handled by the proxy' if includes?(left, right)
+
+      @log.info("Connecting #{left} <-> #{right}")
 
       @mutex.synchronize do
         proxy(left, right, block)
@@ -70,6 +75,7 @@ module SurroGate
     def transmit(src, dst, block)
       dst.write_nonblock(src.read_nonblock(4096))
     rescue # Clean up both sockets if something bad happens
+      @log.warn("Transmission failure between #{src} <-> #{dst}")
       cleanup(src, dst, &block)
     end
 
@@ -80,6 +86,8 @@ module SurroGate
         socket.close unless socket.closed?
       end
 
+      @log.info("Disconnecting #{sockets.join(' <-> ')}")
+
       yield if block_given?
 
       # Make sure that the internal thread is stopped if no sockets remain
@@ -87,6 +95,7 @@ module SurroGate
     end
 
     def thread_start
+      @log.debug('Starting the internal thread')
       @thread ||= Thread.new do
         loop do
           reactor
@@ -96,6 +105,7 @@ module SurroGate
 
     def thread_stop
       return if @thread.nil?
+      @log.debug('Stopping the internal thread')
       thread = @thread
       @thread = nil
       thread.kill
