@@ -15,7 +15,6 @@ module SurroGate
       @mutex = Mutex.new
       @selector = NIO::Selector.new
       @log = logger || Logger.new(STDOUT)
-      @log.level = Logger::WARN
     end
 
     # Registers a pair of socket for proxying.
