@@ -7,7 +7,9 @@ describe SurroGate::Proxy do
   let(:str) { 'test' }
   let(:block) { :foo.to_proc }
 
-  let(:selector) { subject.instance_variable_get(:@selector) }
+  let(:selectors) { subject.instance_variable_get(:@selectors) }
+  let(:reader) { subject.instance_variable_get(:@reader) }
+  let(:writer) { subject.instance_variable_get(:@writer) }
   let(:thread) { subject.instance_variable_get(:@thread) }
   let(:logger) { Logger.new('/dev/null') }
 
@@ -75,8 +77,11 @@ describe SurroGate::Proxy do
   describe '#proxy' do
     it 'registers sockets for reading' do
       subject.send(:proxy, left.first, right.last)
-      expect(selector.registered?(left.first)).to be_truthy
-      expect(selector.registered?(right.last)).to be_truthy
+      selectors.each do |selector|
+        [left.first, right.last].each do |socket|
+          expect(selector.registered?(socket)).to be_truthy
+        end
+      end
     end
 
     it 'starts the internal thread' do
@@ -114,38 +119,39 @@ describe SurroGate::Proxy do
     end
 
     describe 'monitor.value.call' do
-      let(:monitors) { selector.select }
-      let(:reader) { monitors.select(&:readable?).first }
-      let(:writer) { monitors.select(&:writable?).first }
+      let(:rmon) { reader.select.select { |monitor| monitor.io == left.first }.first }
+      let(:wmon) { writer.select.select { |monitor| monitor.io == right.last }.first }
 
       before do
+        allow(subject).to receive(:thread_start)
         subject.send(:proxy, left.first, right.last)
-        subject.send(:thread_stop)
+        allow(wmon).to receive(:writable?).and_return(writable)
+        left.last.write(str)
       end
 
-      context 'transmission is possible' do
-        before { left.last.write(str) }
+      context 'only read is possible' do
+        let(:writable) { false }
 
-        it 'invokes transmit' do
-          expect(subject).to receive(:transmit).with(reader.io, writer.io, nil)
-          reader.value.call
-        end
-
-        it 'returns with a number' do
-          expect(reader.value.call).to be > 0
-        end
-      end
-
-      context 'transmission is not possible' do
-        it 'does not invoke transmit' do
+        it 'not invokes transmit' do
           expect(subject).not_to receive(:transmit)
-          writer.value.call
+          rmon.value.call
         end
 
         it 'returns with nil' do
-          selector.select do |monitor|
-            expect(monitor.value.call).to be_nil
-          end
+          expect(rmon.value.call).to be_nil
+        end
+      end
+
+      context 'both read and write are possible' do
+        let(:writable) { true }
+
+        it 'invokes transmit' do
+          expect(subject).to receive(:transmit).with(left.first, right.last, nil)
+          rmon.value.call
+        end
+
+        it 'returns with not nil' do
+          expect(rmon.value.call).to eq(str.length)
         end
       end
     end
@@ -175,12 +181,16 @@ describe SurroGate::Proxy do
 
   describe '#cleanup' do
     before do
-      selector.register(socket, :r)
+      reader.register(socket, :r)
+      writer.register(socket, :w)
     end
 
     it 'closes and deregisters a socket' do
       subject.send(:cleanup, socket)
-      expect(selector.registered?(socket)).to be_falsey
+
+      selectors.each do |selector|
+        expect(selector.registered?(socket)).to be_falsey
+      end
       expect(socket.closed?).to be_truthy
     end
 
@@ -192,7 +202,7 @@ describe SurroGate::Proxy do
 
     context 'sockets remaining after cleanup' do
       before do
-        selector.register(IO.pipe.first, :r)
+        reader.register(IO.pipe.first, :r)
       end
 
       it 'keeps the internal thread' do
@@ -210,36 +220,17 @@ describe SurroGate::Proxy do
   end
 
   describe '#reactor' do
-    context 'no sockets are registered' do
-      it 'does not sleep' do
-        expect(subject).not_to receive(:sleep)
-        subject.send(:reactor)
-      end
+    before do
+      allow(subject).to receive(:thread_start)
+      subject.push(left.first, right.last)
+      left.last.write(str)
     end
 
-    context 'registered sockets' do
-      before do
-        subject.push(left.first, right.last)
-        subject.send(:thread_stop)
+    it 'calls the monitor value' do
+      reader.select(0.1) do |m|
+        expect(m.value).to receive(:call)
       end
-
-      context 'not ready for IO' do
-        it 'sleeps' do
-          expect(subject).to receive(:sleep)
-          subject.send(:reactor)
-        end
-      end
-
-      context 'ready for IO' do
-        before { left.last.write(str) }
-
-        it 'calls the monitor value' do
-          selector.select(0) do |m|
-            expect(m.value).to receive(:call)
-          end
-          subject.send(:reactor)
-        end
-      end
+      subject.send(:reactor)
     end
   end
 end

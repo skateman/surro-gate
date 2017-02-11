@@ -13,7 +13,9 @@ module SurroGate
   class Proxy
     def initialize(logger)
       @mutex = Mutex.new
-      @selector = NIO::Selector.new
+      @reader = NIO::Selector.new
+      @writer = NIO::Selector.new
+      @selectors = [@reader, @writer]
       @log = logger || Logger.new(STDOUT)
     end
 
@@ -51,14 +53,13 @@ module SurroGate
     private
 
     def proxy(left, right, block = nil)
-      # Pass boths sockets to the Nio4r selector
-      monitors = [left, right].map { |socket| @selector.register(socket, :rw) }
+      # Register the proxying in both directions
+      [[left, right], [right, left]].each do |rd, wr|
+        # Set up monitors for read/write separately
+        src = @reader.register(rd, :r)
+        dst = @writer.register(wr, :w)
 
-      # Set up handlers for both monitors
-      monitors.each do |src|
-        # Get the destination paired with the source
-        dst = monitors.reject { |m| m == src }.first
-        # Set up a proc for future transmissions
+        # Set up handlers for the reader monitor
         src.value = proc do
           # Clean up the connection if one of the endpoints gets closed
           cleanup(src.io, dst.io, &block) if src.io.closed? || dst.io.closed?
@@ -67,8 +68,7 @@ module SurroGate
         end
       end
 
-      # Make sure that the internal thread is started
-      thread_start unless @selector.empty?
+      thread_start unless @reader.empty? || @writer.empty?
     end
 
     def transmit(src, dst, block)
@@ -81,7 +81,7 @@ module SurroGate
     def cleanup(*sockets)
       # Deregister and close the sockets
       sockets.each do |socket|
-        @selector.deregister(socket) if @selector.registered?(socket)
+        @selectors.each { |selector| selector.deregister(socket) if selector.registered?(socket) }
         socket.close unless socket.closed?
       end
 
@@ -90,7 +90,7 @@ module SurroGate
       yield if block_given?
 
       # Make sure that the internal thread is stopped if no sockets remain
-      thread_stop if @selector.empty?
+      thread_stop if @reader.empty? && @writer.empty?
     end
 
     def thread_start
@@ -111,16 +111,19 @@ module SurroGate
     end
 
     def reactor
-      # Atomically get an array of readable/writable monitors
-      monitors = @mutex.synchronize { @selector.select(0.1) || [] }
+      # Atomically get an array of readable monitors while also polling for writables
+      monitors = @mutex.synchronize do
+        @writer.select(0.1)
+        @reader.select(0.1) || []
+      end
       # Call each transmission proc and collect the results
-      callers = monitors.map { |m| m.value.call }
-      # Sleep for a short time if there was no transmission
-      sleep(0.1) if callers.none? && monitors.any?
+      monitors.map { |m| m.value.call }
     end
 
     def includes?(*sockets)
-      sockets.map { |socket| @selector.registered?(socket) }.any?
+      sockets.any? do |socket|
+        @selectors.any? { |selector| selector.registered?(socket) }
+      end
     end
   end
 end
