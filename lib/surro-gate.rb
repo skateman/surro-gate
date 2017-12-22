@@ -1,5 +1,5 @@
 require 'surro-gate/version'
-require 'surro-gate/proxy_error'
+require 'surro-gate/connection'
 require 'surro-gate/proxy'
 
 # A generic purpose TCP-to-TCP proxy

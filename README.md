@@ -33,8 +33,8 @@ require 'surro-gate'
 proxy = SurroGate.new
 
 # Create two TCP socket connections
-left = TCPSocket.new('localhost', 3333)
-right = TCPSocket.new('localhost', 2222)
+left = SurroGate::Connection.new(TCPSocket.new('localhost', 3333))
+right = SurroGate::Connection.new(TCPSocket.new('localhost', 2222))
 
 # Push the sockets to the proxy
 proxy.push(left, right)
