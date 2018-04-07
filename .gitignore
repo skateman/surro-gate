@@ -9,6 +9,7 @@
 /test/tmp/
 /test/version_tmp/
 /tmp/
+/lib/**/*.so
 
 ## Documentation cache and generated files:
 /.yardoc/

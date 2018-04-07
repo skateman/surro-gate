@@ -1,5 +1,6 @@
-# coding: utf-8
-lib = File.expand_path('../lib', __FILE__)
+# frozen_string_literal: true
+
+lib = File.expand_path('lib', __dir__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'surro-gate/version'
 
@@ -9,24 +10,23 @@ Gem::Specification.new do |spec|
   spec.authors       = ['Dávid Halász']
   spec.email         = ['skateman@skateman.eu']
 
-  spec.summary       = 'A general purrpose TCP-to-TCP proxy written in Ruby'
-  spec.description   = 'A general purrpose TCP-to-TCP proxy written in Ruby'
+  spec.summary       = 'A generic purrpose TCP-to-TCP proxy in Ruby'
+  spec.description   = 'A generic purrpose TCP-to-TCP proxy for Ruby implemented using epoll'
   spec.homepage      = 'https://github.com/skateman/surro-gate'
   spec.license       = 'MIT'
 
   spec.files         = `git ls-files -z`.split("\x0").reject do |f|
     f.match(%r{^(test|spec|features)/})
   end
+  spec.extensions    = ['ext/surro-gate/extconf.rb'] if SurroGate::HAVE_EXT
   spec.bindir        = 'exe'
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ['lib']
 
-  spec.add_dependency 'nio4r', '~> 2.0.0'
+  spec.add_dependency 'concurrent-ruby'
 
-  spec.add_development_dependency 'bundler', '~> 1.13'
-  spec.add_development_dependency 'codecov', '~> 0.1.0'
-  spec.add_development_dependency 'nyan-cat-formatter', '~> 0.11'
-  spec.add_development_dependency 'rake', '~> 10.0'
-  spec.add_development_dependency 'rspec', '~> 3.0'
-  spec.add_development_dependency 'simplecov', '~> 0.12'
+  spec.add_development_dependency 'bundler'
+  spec.add_development_dependency 'rake'
+  spec.add_development_dependency 'rake-compiler'
+  spec.add_development_dependency 'rspec'
 end

@@ -5,9 +5,8 @@
 [![Dependency Status](https://gemnasium.com/skateman/surro-gate.svg)](https://gemnasium.com/skateman/surro-gate)
 [![Inline docs](http://inch-ci.org/github/skateman/surro-gate.svg?branch=master)](http://inch-ci.org/github/skateman/surro-gate)
 [![Code Climate](https://codeclimate.com/github/skateman/surro-gate/badges/gpa.svg)](https://codeclimate.com/github/skateman/surro-gate)
-[![codecov](https://codecov.io/gh/skateman/surro-gate/branch/master/graph/badge.svg)](https://codecov.io/gh/skateman/surro-gate)
 
-SurroGate is a general purpose TCP-to-TCP proxy implemented in Ruby.
+SurroGate is a generic purrpose TCP-to-TCP proxy for Ruby implemented using epoll.
 
 ## Installation
 
@@ -32,15 +31,27 @@ require 'surro-gate'
 
 proxy = SurroGate.new
 
-# Create two TCP socket connections
-left = TCPSocket.new('localhost', 3333)
-right = TCPSocket.new('localhost', 2222)
+# Create a pair of TCP socket connections
+sock_1 = TCPSocket.new('localhost', 1111)
+sock_2 = TCPSocket.new('localhost', 2222)
 
-# Push the sockets to the proxy
-proxy.push(left, right)
+# Push the pair of sockets to the proxy
+proxy.push(sock_1, sock_2)
 
-# Wait for the communication to finish
-proxy.wait
+loop do
+  # Select with a 1 second timeout
+  proxy.select(1000)
+
+  # Do some hard work
+  proxy.each_ready do |left, right|
+    begin
+      right.write_nonblock(left.read_nonblock(4096))
+    rescue => ex
+      # ...
+      proxy.pop(left, right) # Remove the failed connection pair from the proxy
+    end
+  end
+end
 
 ```
 
