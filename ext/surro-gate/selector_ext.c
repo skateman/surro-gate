@@ -22,6 +22,13 @@ void epoll_rearm(int *epoll, int socket, int ltr, int rtl, int events) {
   epoll_ctl(*epoll, EPOLL_CTL_MOD, socket, &ev);
 }
 
+void* wait_func(void *ptr) {
+  struct epoll_wait_args *args;
+  args = (struct epoll_wait_args*) ptr;
+  args->result = epoll_wait(args->epfd, args->events, args->maxevents, args->timeout);
+  return NULL;
+}
+
 static VALUE pairing_compare(VALUE pair, VALUE sockets) {
   int i;
   VALUE left = rb_iv_get(pair, "@left");
@@ -139,16 +146,24 @@ static VALUE SurroGate_Selector_pop(VALUE self, VALUE sockets) {
 }
 
 static VALUE SurroGate_Selector_select(VALUE self, VALUE timeout) {
-  int i, count, *selector, source, target;
+  int i, *selector, source, target;
   struct epoll_event events[256];
+  struct epoll_wait_args wait_args;
   VALUE read, write, socket;
 
   VALUE pairing = rb_iv_get(self, "@pairing");
   Data_Get_Struct(self, int, selector);
 
-  count = epoll_wait(*selector, events, 256, NUM2INT(timeout));
+  // The code after the comments has the same result as the code below, but with GVL
+  // args.result = epoll_wait(*selector, events, 256, NUM2INT(timeout));
+  wait_args.epfd = *selector;
+  wait_args.events = events;
+  wait_args.maxevents = 256;
+  wait_args.timeout = NUM2INT(timeout);
+  wait_args.result = 0;
+  rb_thread_call_without_gvl(wait_func, &wait_args, NULL, NULL);
 
-  for (i=0; i<count; i++) {
+  for (i=0; i<wait_args.result; i++) {
     source = (int)((events[i].data.u64 & 0xFFFFFFFF00000000LL) >> 32);
     target = (int)(events[i].data.u64 & 0xFFFFFFFFLL);
 
@@ -176,7 +191,7 @@ static VALUE SurroGate_Selector_select(VALUE self, VALUE timeout) {
     }
   }
 
-  return INT2NUM(count);
+  return INT2NUM(wait_args.result);
 }
 
 static VALUE SurroGate_Selector_each_ready(VALUE self) {
