@@ -60,9 +60,9 @@ static VALUE pairing_iterate(VALUE pair, VALUE self, int argc, VALUE *argv) {
 
     Data_Get_Struct(self, int, selector);
     // Rearm left socket for reading and also writing if not ready for writing
-    epoll_rearm(selector, SOCK_PTR(rb_iv_get(pair, "@left")), NUM2INT(argv[1]), NUM2INT(inv_idx), EPOLLIN | (IVAR_TRUE(inverse, "@wr_rdy") ? 0 : EPOLLOUT));
+    epoll_rearm(selector, SOCK_PTR(rb_iv_get(pair, "@left")), NUM2INT(inv_idx), NUM2INT(argv[1]), EPOLLIN | (IVAR_TRUE(inverse, "@wr_rdy") ? 0 : EPOLLOUT));
     // Rearm right socket for writing and also reading if not ready for reading
-    epoll_rearm(selector, SOCK_PTR(rb_iv_get(pair, "@right")), NUM2INT(inv_idx), NUM2INT(argv[1]), EPOLLOUT | (IVAR_TRUE(inverse, "@rd_rdy") ? 0 : EPOLLIN));
+    epoll_rearm(selector, SOCK_PTR(rb_iv_get(pair, "@right")), NUM2INT(argv[1]), NUM2INT(inv_idx), EPOLLOUT | (IVAR_TRUE(inverse, "@rd_rdy") ? 0 : EPOLLIN));
   }
   return Qnil;
 }
