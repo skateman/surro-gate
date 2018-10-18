@@ -60,9 +60,9 @@ static VALUE pairing_iterate(VALUE pair, VALUE self, int argc, VALUE *argv) {
 
     Data_Get_Struct(self, int, selector);
     // Rearm left socket for reading and also writing if not ready for writing
-    epoll_rearm(selector, SOCK_PTR(rb_iv_get(pair, "@left")), NUM2INT(argv[1]), NUM2INT(inv_idx), EPOLLIN | (IVAR_TRUE(inverse, "@wr_rdy") ? 0 : EPOLLOUT));
+    epoll_rearm(selector, SOCK_PTR(rb_iv_get(pair, "@left")), NUM2INT(inv_idx), NUM2INT(argv[1]), EPOLLIN | (IVAR_TRUE(inverse, "@wr_rdy") ? 0 : EPOLLOUT));
     // Rearm right socket for writing and also reading if not ready for reading
-    epoll_rearm(selector, SOCK_PTR(rb_iv_get(pair, "@right")), NUM2INT(inv_idx), NUM2INT(argv[1]), EPOLLOUT | (IVAR_TRUE(inverse, "@rd_rdy") ? 0 : EPOLLIN));
+    epoll_rearm(selector, SOCK_PTR(rb_iv_get(pair, "@right")), NUM2INT(argv[1]), NUM2INT(inv_idx), EPOLLOUT | (IVAR_TRUE(inverse, "@rd_rdy") ? 0 : EPOLLIN));
   }
   return Qnil;
 }
@@ -167,8 +167,8 @@ static VALUE SurroGate_Selector_select(VALUE self, VALUE timeout) {
     source = (int)((events[i].data.u64 & 0xFFFFFFFF00000000LL) >> 32);
     target = (int)(events[i].data.u64 & 0xFFFFFFFFLL);
 
-    read = rb_funcall(pairing, rb_intern("[]"), 1, INT2NUM(target)); // @pairing[source]
-    write = rb_funcall(pairing, rb_intern("[]"), 1, INT2NUM(source)); // @pairing[target]
+    read = rb_funcall(pairing, rb_intern("[]"), 1, INT2NUM(target)); // @pairing[target]
+    write = rb_funcall(pairing, rb_intern("[]"), 1, INT2NUM(source)); // @pairing[source]
 
     if (events[i].events & EPOLLIN && events[i].events & EPOLLOUT) {
       // Socket is both available for read and write

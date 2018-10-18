@@ -41,6 +41,7 @@ describe SurroGate do
     end
 
     before do
+      thread.abort_on_exception = true
       proxy.push(sock_1.first, sock_2.first)
       sleep(2)
     end
@@ -52,11 +53,13 @@ describe SurroGate do
     end
 
     it 'transmits in both directions' do
-      sock_1.last.write_nonblock('foo')
-      sock_2.last.write_nonblock('bar')
-      sleep(2)
-      expect(sock_2.last.read_nonblock(3)).to eq('foo')
-      expect(sock_1.last.read_nonblock(3)).to eq('bar')
+      2.times do
+        sock_1.last.write_nonblock('foo')
+        sock_2.last.write_nonblock('bar')
+        sleep(2)
+        expect(sock_2.last.read_nonblock(3)).to eq('foo')
+        expect(sock_1.last.read_nonblock(3)).to eq('bar')
+      end
     end
   end
 end
