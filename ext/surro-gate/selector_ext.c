@@ -167,8 +167,8 @@ static VALUE SurroGate_Selector_select(VALUE self, VALUE timeout) {
     source = (int)((events[i].data.u64 & 0xFFFFFFFF00000000LL) >> 32);
     target = (int)(events[i].data.u64 & 0xFFFFFFFFLL);
 
-    read = rb_funcall(pairing, rb_intern("[]"), 1, INT2NUM(target)); // @pairing[source]
-    write = rb_funcall(pairing, rb_intern("[]"), 1, INT2NUM(source)); // @pairing[target]
+    read = rb_funcall(pairing, rb_intern("[]"), 1, INT2NUM(target)); // @pairing[target]
+    write = rb_funcall(pairing, rb_intern("[]"), 1, INT2NUM(source)); // @pairing[source]
 
     if (events[i].events & EPOLLIN && events[i].events & EPOLLOUT) {
       // Socket is both available for read and write
