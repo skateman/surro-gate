@@ -7,10 +7,14 @@ require 'surro-gate/version'
 
 RSpec::Core::RakeTask.new(:spec)
 
-Rake::ExtensionTask.new('surro-gate') do |ext|
-  ext.name = 'surro-gate/selector_ext'
-end
+if SurroGate::HAVE_EXT
+  Rake::ExtensionTask.new('surro-gate') do |ext|
+    ext.name = 'surro-gate/selector_ext'
+  end
 
-task :default => SurroGate::HAVE_EXT ? %i[compile spec] : %i[clean spec]
+  task :default => %i[compile spec]
+else
+  task :default => %i[clean spec]
+end
 
 CLEAN.include '**/*.o', '**/*.so', 'pkg', 'tmp'
