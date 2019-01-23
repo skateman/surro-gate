@@ -184,7 +184,7 @@ static VALUE SurroGate_Selector_select(VALUE self, VALUE timeout) {
     } else if (events[i].events & EPOLLOUT) {
       // Socket is available for write, reregister it for read if not readable
       rb_iv_set(write, "@wr_rdy", Qtrue); // write.wr_rdy = true
-      if (rb_iv_get(write, "@rd_rdy") == Qfalse) { // if !source.rd_rdy
+      if (rb_iv_get(read, "@rd_rdy") == Qfalse) { // if !source.rd_rdy
         socket = rb_iv_get(write, "@right"); // write.right
         epoll_rearm(selector, SOCK_PTR(socket), source, target, EPOLLIN);
       }
