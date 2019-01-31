@@ -26,7 +26,6 @@ static VALUE SurroGate_Selector_select(VALUE self, VALUE timeout);
 static VALUE SurroGate_Selector_each_ready(VALUE self);
 
 static void SurroGate_Selector_free(int *epoll);
-static VALUE pairing_compare(VALUE pair, VALUE sockets);
-static VALUE pairing_iterate(VALUE pair, VALUE self, int argc, VALUE *argv);
+static VALUE scoreboard_iterate(VALUE pair, VALUE self, int argc, VALUE *argv);
 
 #endif
