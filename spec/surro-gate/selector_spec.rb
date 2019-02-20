@@ -8,6 +8,7 @@ describe SurroGate::Selector do
   let(:left_pair) { pairing.find { |pair| pair.instance_variable_get(:@left) == sockpair.first } }
   let(:right_pair) { pairing.find { |pair| pair.instance_variable_get(:@right) == sockpair.first } }
   let(:sockpair) { Socket.pair(:UNIX, :DGRAM, 0) }
+  let(:pipe) { IO.pipe }
 
   describe '#push' do
     context 'repushing arguments' do
@@ -40,6 +41,13 @@ describe SurroGate::Selector do
       subject.pop(*sockpair)
       expect(pairing.length).to eq(0)
     end
+
+    it 'handles out of order cleanup' do
+      subject.push(*pipe)
+      subject.pop(*sockpair)
+
+      expect { subject.select(500) }.to_not raise_error
+     end
   end
 
   describe '#select' do
