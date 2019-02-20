@@ -16,3 +16,9 @@ rvm:
 before_install:
   - "echo 'gem: --no-ri --no-rdoc --no-document' > ~/.gemrc"
   - "gem install bundler -v 1.13.0"
+before_script:
+  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+  - chmod +x ./cc-test-reporter
+  - [ "$TRAVIS_OS_NAME" == "linux" ] && ./cc-test-reporter before-build
+after_script:
+  - [ "$TRAVIS_OS_NAME" == "linux" ] && ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
