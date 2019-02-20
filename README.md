@@ -2,7 +2,6 @@
 
 [![Gem Version](https://badge.fury.io/rb/surro-gate.svg)](https://badge.fury.io/rb/surro-gate)
 [![Build Status](https://travis-ci.org/skateman/surro-gate.svg?branch=master)](https://travis-ci.org/skateman/surro-gate)
-[![Dependency Status](https://gemnasium.com/skateman/surro-gate.svg)](https://gemnasium.com/skateman/surro-gate)
 [![Inline docs](http://inch-ci.org/github/skateman/surro-gate.svg?branch=master)](http://inch-ci.org/github/skateman/surro-gate)
 [![Code Climate](https://codeclimate.com/github/skateman/surro-gate/badges/gpa.svg)](https://codeclimate.com/github/skateman/surro-gate)
 
@@ -69,4 +68,3 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/skatem
 ## License
 
 The gem is available as open source under the terms of the [MIT License](http://opensource.org/licenses/MIT).
-
