@@ -5,9 +5,25 @@ describe SurroGate::Selector do
 
   let(:logger) { double }
   let(:pairing) { subject.instance_variable_get(:@pairing) }
-  let(:left_pair) { pairing.find { |pair| pair.instance_variable_get(:@left) == sockpair.first } }
-  let(:right_pair) { pairing.find { |pair| pair.instance_variable_get(:@right) == sockpair.first } }
+  let(:map_rd) { subject.instance_variable_get(:@scoreboard).instance_variable_get(:@rd) }
+  let(:map_wr) { subject.instance_variable_get(:@scoreboard).instance_variable_get(:@wr) }
   let(:sockpair) { Socket.pair(:UNIX, :DGRAM, 0) }
+
+  let(:left_pair) do
+    if SurroGate::HAVE_EXT
+      map_rd[sockpair.first]
+    else
+      pairing.find { |pair| pair.instance_variable_get(:@left) == sockpair.first }
+    end
+  end
+
+  let(:right_pair) do
+    if SurroGate::HAVE_EXT
+      map_wr[sockpair.first]
+    else
+      pairing.find { |pair| pair.instance_variable_get(:@right) == sockpair.first }
+    end
+  end
 
   describe '#push' do
     context 'repushing arguments' do
@@ -26,20 +42,28 @@ describe SurroGate::Selector do
     end
 
     it 'stores the socket pair' do
-      expect(pairing.length).to eq(0)
+      expect_selector_length(0)
       subject.push(*sockpair)
-      expect(pairing.length).to eq(2)
+      expect_selector_length(2)
     end
   end
 
   describe '#pop' do
+    let(:pipe) { IO.pipe }
     before { subject.push(*sockpair) }
 
     it 'removes the socket pair' do
-      expect(pairing.length).to eq(2)
+      expect_selector_length(2)
       subject.pop(*sockpair)
-      expect(pairing.length).to eq(0)
+      expect_selector_length(0)
     end
+
+    it 'handles out of order cleanup' do
+      subject.push(*pipe)
+      subject.pop(*sockpair)
+
+      expect { subject.select(500) }.to_not raise_error
+     end
   end
 
   describe '#select' do
@@ -149,6 +173,16 @@ describe SurroGate::Selector do
         expect(left_pair.ready?).to be_truthy
         expect(right_pair.ready?).to be_truthy
       end
+    end
+  end
+
+  # Helper method to determine the number of the registered sockets
+  def expect_selector_length(length)
+    if SurroGate::HAVE_EXT
+      expect(map_rd.length).to eq(length)
+      expect(map_wr.length).to eq(length)
+    else
+      expect(pairing.length).to eq(length)
     end
   end
 end

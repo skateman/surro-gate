@@ -97,8 +97,8 @@ module SurroGate
     end
 
     def pairing_compare(pair, sockets)
-      sockets.each do |sock|
-        return true if [pair.left, pair.right].include?(sock)
+      sockets.any? do |sock|
+        pair.left == sock || pair.right == sock
       end
     end
   end
