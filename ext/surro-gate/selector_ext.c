@@ -30,7 +30,7 @@ void* wait_func(void *ptr) {
   return NULL;
 }
 
-static VALUE scoreboard_iterate(VALUE pair, VALUE self, int argc, VALUE *argv) {
+static VALUE scoreboard_iterate(VALUE pair, VALUE self, int argc, const VALUE *argv, VALUE _blockarg) {
   int *selector;
   VALUE inverse;
 
