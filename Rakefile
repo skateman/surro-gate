@@ -10,6 +10,7 @@ RSpec::Core::RakeTask.new(:spec)
 if SurroGate::HAVE_EXT
   Rake::ExtensionTask.new('surro-gate') do |ext|
     ext.name = 'surro-gate/selector_ext'
+    ext.lib_dir = 'lib/surro-gate'
   end
 
   task :default => %i[compile spec]
